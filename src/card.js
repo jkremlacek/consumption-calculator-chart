@@ -348,7 +348,11 @@ class CostChartCard extends HTMLElement {
       })
       .join("");
 
-    const legend = data.series
+    const legendSeries = data.series.filter((series) =>
+      series.points.some((point) => Number.isFinite(point.value)),
+    );
+
+    const legend = legendSeries
       .map(
         (series) => `
       <span class="legend-item">

@@ -3,6 +3,9 @@ export const styles = `
     display: block;
     width: 100%;
     height: 100%;
+    font-family: var(--ha-card-header-font-family, var(--primary-font-family));
+    font-size: 14px;
+    line-height: 1.4;
     --card-bg: rgba(20, 24, 36, 0.82);
     --card-border: rgba(255, 255, 255, 0.08);
     --text-primary: #ebf2ff;
@@ -23,7 +26,7 @@ export const styles = `
   }
 
   .title {
-    font-size: 1rem;
+    font-size: 1.18rem;
     font-weight: 600;
     color: var(--text-primary);
     margin: 0 0 6px;
@@ -38,7 +41,7 @@ export const styles = `
     align-items: center;
     gap: 8px 12px;
     color: var(--text-secondary);
-    font-size: 0.72rem;
+    font-size: 0.82rem;
     margin-top: 2px;
     padding-bottom: 2px;
   }
@@ -74,8 +77,9 @@ export const styles = `
 
   .axis-label {
     fill: var(--text-secondary);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 500;
+    font-family: inherit;
   }
 
   .grid-line {

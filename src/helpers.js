@@ -54,8 +54,17 @@ export function buildTimeLabels(times) {
     return [];
   }
 
-  const step = Math.max(1, Math.ceil(times.length / 6));
-  return times.filter(
-    (_, index) => index % step === 0 || index === times.length - 1,
-  );
+  if (times.length === 1) {
+    return [times[0] - 60 * 60 * 1000, times[0]];
+  }
+
+  const tickCount = Math.min(5, Math.max(2, times.length));
+  const result = [];
+  for (let i = 0; i < tickCount; i += 1) {
+    const index = Math.round((i / (tickCount - 1)) * (times.length - 1));
+    result.push(times[index]);
+  }
+
+  const deduped = [...new Set(result)];
+  return deduped.length > 1 ? deduped : [times[0], times[times.length - 1]];
 }
