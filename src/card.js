@@ -100,8 +100,19 @@ class CostChartCard extends HTMLElement {
       this._chartData = this.buildChartData(series);
       this.render();
     } catch (error) {
-      console.error("CostChartCard history fetch failed", error);
-      this.renderPlaceholder("Unable to load chart history.");
+      console.warn("CostChartCard history unavailable; using live state only.", error);
+      const fallbackSeries = entities.map((entityId, index) => {
+        const currentValue = toNumber(this._hass.states[entityId]?.state);
+        return {
+          entityId,
+          label: entityId.split(".").pop().replace(/_/g, " "),
+          color: this._config.colors[index % this._config.colors.length],
+          points: currentValue !== null ? [{ time: Date.now(), value: currentValue }] : [],
+        };
+      });
+
+      this._chartData = this.buildChartData(fallbackSeries);
+      this.render();
     }
   }
 
@@ -116,7 +127,11 @@ class CostChartCard extends HTMLElement {
 
     if (this._hass?.callApi && typeof this._hass.callApi === "function") {
       try {
-        const response = await this._hass.callApi("GET", "history/period", params);
+        const response = await this._hass.callApi(
+          "GET",
+          "history/period",
+          params,
+        );
         return Array.isArray(response) ? response : [];
       } catch (error) {
         console.warn(
@@ -132,6 +147,11 @@ class CostChartCard extends HTMLElement {
     });
 
     const response = await fetch(`/api/history/period?${query.toString()}`);
+    if (response.status === 401 || response.status === 403) {
+      console.warn(`History access denied for ${entityId}; using live state only.`);
+      return [];
+    }
+
     if (!response.ok) {
       throw new Error(`History API returned ${response.status}`);
     }
