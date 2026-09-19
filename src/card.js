@@ -7,6 +7,8 @@ import {
   toNumber,
 } from "./helpers.js";
 
+const CARD_VERSION = "1.0.0";
+
 const DEFAULT_CONFIG = {
   title: "Electricity Cost",
   hours: 24,
@@ -60,6 +62,11 @@ class CostChartCard extends HTMLElement {
       return;
     }
 
+    if (this._historyBlocked) {
+      this.renderLiveOnlyState();
+      return;
+    }
+
     this.refreshData();
   }
 
@@ -102,18 +109,8 @@ class CostChartCard extends HTMLElement {
       this.render();
     } catch (error) {
       console.warn("CostChartCard history unavailable; using live state only.", error);
-      const fallbackSeries = entities.map((entityId, index) => {
-        const currentValue = toNumber(this._hass.states[entityId]?.state);
-        return {
-          entityId,
-          label: entityId.split(".").pop().replace(/_/g, " "),
-          color: this._config.colors[index % this._config.colors.length],
-          points: currentValue !== null ? [{ time: Date.now(), value: currentValue }] : [],
-        };
-      });
-
-      this._chartData = this.buildChartData(fallbackSeries);
-      this.render();
+      this._historyBlocked = true;
+      this.renderLiveOnlyState();
     }
   }
 
@@ -227,9 +224,31 @@ class CostChartCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>${styles}</style>
       <div class="card">
-        <div class="empty">${message}</div>
+        <div class="empty">${message}<br /><small>v${CARD_VERSION}</small></div>
       </div>
     `;
+  }
+
+  renderLiveOnlyState() {
+    const { title } = this._config;
+    const currentSeries = this._config.entities
+      .map((entityId, index) => {
+        const value = toNumber(this._hass.states[entityId]?.state);
+        return {
+          entityId,
+          label: entityId.split(".").pop().replace(/_/g, " "),
+          color: this._config.colors[index % this._config.colors.length],
+          points: value !== null ? [{ time: Date.now(), value }] : [],
+        };
+      })
+      .filter((series) => series.points.length);
+
+    this._chartData = this.buildChartData(currentSeries);
+    this.render();
+
+    if (!currentSeries.length) {
+      this.renderPlaceholder(`History access blocked — live data unavailable. v${CARD_VERSION}`);
+    }
   }
 
   render() {
