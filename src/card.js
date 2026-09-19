@@ -151,8 +151,15 @@ class CostChartCard extends HTMLElement {
       query.append(key, String(value));
     });
 
+    const authToken =
+      this._hass?.auth?.data?.access_token || this._hass?.auth?.access_token;
+
     try {
-      const response = await fetch(`/api/history/period?${query.toString()}`);
+      const response = await fetch(`/api/history/period?${query.toString()}`, {
+        headers: {
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+      });
       if (response.status === 401 || response.status === 403) {
         this._historyBlocked = true;
         console.warn(
