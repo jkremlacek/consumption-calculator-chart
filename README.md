@@ -21,7 +21,7 @@ The card expects entities like:
 
 ## Card configuration
 
-```yaml
+````yaml
 type: custom:cost-chart-card
 entities:
   - sensor.current_15min_cost
@@ -34,7 +34,7 @@ colors:
   - '#4fc3f7'
   - '#f9a825'
   - '#ef5350'
-```
+```;
 
 ## HACS install
 
@@ -53,7 +53,7 @@ The expected HACS metadata is defined in `hacs.json` and the card file produced 
 ```bash
 npm install
 npm run build
-```
+````
 
 2. Copy the generated file from `cost-chart-card.js` in the repo root, or from `dist/cost-chart-card.js`, to your Home Assistant frontend resource directory or a served static file location.
 

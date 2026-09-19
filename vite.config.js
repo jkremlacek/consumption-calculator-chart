@@ -1,14 +1,14 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from "vite";
 
 export default defineConfig({
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     emptyOutDir: true,
     lib: {
-      entry: 'src/card.js',
-      name: 'ConsumptionCostChart',
-      formats: ['iife'],
-      fileName: () => 'cost-chart-card.js',
+      entry: "src/card.js",
+      name: "ConsumptionCostChart",
+      formats: ["iife"],
+      fileName: () => "cost-chart-card.js",
     },
     sourcemap: true,
   },

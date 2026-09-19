@@ -1,5 +1,5 @@
 export function toNumber(value) {
-  if (value === null || value === undefined || value === '') {
+  if (value === null || value === undefined || value === "") {
     return null;
   }
 
@@ -15,7 +15,9 @@ export function normalizeHistory(historyItems, hours, stepMs = 15 * 60 * 1000) {
     const states = Array.isArray(entry?.states) ? entry.states : [];
 
     states.forEach((state) => {
-      const timeStamp = new Date(state.last_updated || state.last_changed || state.last_reported).getTime();
+      const timeStamp = new Date(
+        state.last_updated || state.last_changed || state.last_reported,
+      ).getTime();
       if (!Number.isFinite(timeStamp) || timeStamp < cutoff) {
         return;
       }
@@ -40,7 +42,7 @@ export function normalizeHistory(historyItems, hours, stepMs = 15 * 60 * 1000) {
 }
 
 export function formatValue(value, decimals) {
-  return Number.isFinite(value) ? value.toFixed(decimals) : '—';
+  return Number.isFinite(value) ? value.toFixed(decimals) : "—";
 }
 
 export function clamp(value, min, max) {
@@ -53,5 +55,7 @@ export function buildTimeLabels(times) {
   }
 
   const step = Math.max(1, Math.ceil(times.length / 6));
-  return times.filter((_, index) => index % step === 0 || index === times.length - 1);
+  return times.filter(
+    (_, index) => index % step === 0 || index === times.length - 1,
+  );
 }

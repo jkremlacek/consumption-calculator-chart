@@ -1,22 +1,28 @@
-import { styles } from './styles.js';
-import { buildTimeLabels, clamp, formatValue, normalizeHistory, toNumber } from './helpers.js';
+import { styles } from "./styles.js";
+import {
+  buildTimeLabels,
+  clamp,
+  formatValue,
+  normalizeHistory,
+  toNumber,
+} from "./helpers.js";
 
 const DEFAULT_CONFIG = {
-  title: 'Electricity Cost',
+  title: "Electricity Cost",
   hours: 24,
   decimals: 2,
-  colors: ['#4fc3f7', '#f9a825', '#ef5350'],
+  colors: ["#4fc3f7", "#f9a825", "#ef5350"],
   entities: [
-    'sensor.current_15min_cost',
-    'sensor.current_shared_cost_15min',
-    'sensor.current_grid_cost_15min',
+    "sensor.current_15min_cost",
+    "sensor.current_shared_cost_15min",
+    "sensor.current_grid_cost_15min",
   ],
 };
 
 class CostChartCard extends HTMLElement {
   constructor() {
     super();
-    this.attachShadow({ mode: 'open' });
+    this.attachShadow({ mode: "open" });
     this._hass = null;
     this._chartData = [];
     this._config = { ...DEFAULT_CONFIG };
@@ -28,7 +34,9 @@ class CostChartCard extends HTMLElement {
       ...DEFAULT_CONFIG,
       ...(config || {}),
       colors: config?.colors || DEFAULT_CONFIG.colors,
-      entities: Array.isArray(config?.entities) ? config.entities : DEFAULT_CONFIG.entities,
+      entities: Array.isArray(config?.entities)
+        ? config.entities
+        : DEFAULT_CONFIG.entities,
     };
 
     if (!merged.entities.length) {
@@ -47,7 +55,7 @@ class CostChartCard extends HTMLElement {
 
   requestUpdate() {
     if (!this._ready || !this._hass) {
-      this.renderPlaceholder('Waiting for Home Assistant state…');
+      this.renderPlaceholder("Waiting for Home Assistant state…");
       return;
     }
 
@@ -56,24 +64,33 @@ class CostChartCard extends HTMLElement {
 
   async refreshData() {
     const { entities, hours } = this._config;
-    const startTime = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+    const startTime = new Date(
+      Date.now() - hours * 60 * 60 * 1000,
+    ).toISOString();
     const endTime = new Date().toISOString();
 
     try {
       const series = await Promise.all(
         entities.map(async (entityId, index) => {
-          const history = await this.fetchHistoryForEntity(entityId, startTime, endTime);
+          const history = await this.fetchHistoryForEntity(
+            entityId,
+            startTime,
+            endTime,
+          );
           const points = normalizeHistory(history, hours);
           const currentState = this._hass.states[entityId]?.state;
           const currentValue = toNumber(currentState);
 
-          if (currentValue !== null && (!points.length || points[points.length - 1].time < Date.now())) {
+          if (
+            currentValue !== null &&
+            (!points.length || points[points.length - 1].time < Date.now())
+          ) {
             points.push({ time: Date.now(), value: currentValue });
           }
 
           return {
             entityId,
-            label: entityId.split('.').pop().replace(/_/g, ' '),
+            label: entityId.split(".").pop().replace(/_/g, " "),
             color: this._config.colors[index % this._config.colors.length],
             points: points.sort((a, b) => a.time - b.time),
           };
@@ -83,25 +100,44 @@ class CostChartCard extends HTMLElement {
       this._chartData = this.buildChartData(series);
       this.render();
     } catch (error) {
-      console.error('CostChartCard history fetch failed', error);
-      this.renderPlaceholder('Unable to load chart history.');
+      console.error("CostChartCard history fetch failed", error);
+      this.renderPlaceholder("Unable to load chart history.");
     }
   }
 
   async fetchHistoryForEntity(entityId, startTime, endTime) {
-    if (!this._hass?.callApi) {
-      return [];
-    }
-
-    const response = await this._hass.callApi('GET', 'history/period', {
+    const params = {
       start_time: startTime,
       end_time: endTime,
       filter_entity_id: entityId,
       minimal_response: true,
       significant_changes_only: false,
+    };
+
+    if (this._hass?.callApi && typeof this._hass.callApi === "function") {
+      try {
+        const response = await this._hass.callApi("GET", "history/period", params);
+        return Array.isArray(response) ? response : [];
+      } catch (error) {
+        console.warn(
+          `callApi history request failed for ${entityId}; falling back to fetch`,
+          error,
+        );
+      }
+    }
+
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      query.append(key, String(value));
     });
 
-    return Array.isArray(response) ? response : [];
+    const response = await fetch(`/api/history/period?${query.toString()}`);
+    if (!response.ok) {
+      throw new Error(`History API returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
   }
 
   buildChartData(series) {
@@ -112,7 +148,9 @@ class CostChartCard extends HTMLElement {
 
     const sortedTimes = Array.from(allTimes).sort((a, b) => a - b);
     const normalizedSeries = series.map((entry) => {
-      const pointMap = new Map(entry.points.map((point) => [point.time, point.value]));
+      const pointMap = new Map(
+        entry.points.map((point) => [point.time, point.value]),
+      );
       const alignedPoints = sortedTimes.map((time) => ({
         time,
         value: pointMap.has(time) ? pointMap.get(time) : null,
@@ -167,7 +205,9 @@ class CostChartCard extends HTMLElement {
     const { title, decimals } = this._config;
 
     if (!data?.series?.length || !data.times?.length) {
-      this.renderPlaceholder('No chart data available for the selected time range.');
+      this.renderPlaceholder(
+        "No chart data available for the selected time range.",
+      );
       return;
     }
 
@@ -184,58 +224,79 @@ class CostChartCard extends HTMLElement {
 
     const yForValue = (value) => {
       const range = data.yMax - data.yMin || 1;
-      return margin.top + plotHeight - ((value - data.yMin) / range) * plotHeight;
+      return (
+        margin.top + plotHeight - ((value - data.yMin) / range) * plotHeight
+      );
     };
 
     const xAxis = Array.from({ length: 5 }, (_, index) => {
       const x = margin.left + (index / 4) * plotWidth;
-      const labelTime = data.xTicks[index] ?? data.xTicks[data.xTicks.length - 1];
-      const label = labelTime ? new Date(labelTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '';
+      const labelTime =
+        data.xTicks[index] ?? data.xTicks[data.xTicks.length - 1];
+      const label = labelTime
+        ? new Date(labelTime).toLocaleTimeString([], {
+            hour: "numeric",
+            minute: "2-digit",
+          })
+        : "";
       return `<line class="grid-line" x1="${x}" y1="${margin.top}" x2="${x}" y2="${margin.top + plotHeight}" />
         <text class="axis-label" x="${x}" y="${height - 14}" text-anchor="middle">${label}</text>`;
-    }).join('');
+    }).join("");
 
-    const yAxis = data.yTicks.map((tick) => {
-      const y = yForValue(tick);
-      return `
+    const yAxis = data.yTicks
+      .map((tick) => {
+        const y = yForValue(tick);
+        return `
         <line class="grid-line" x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" />
         <text class="axis-label" x="${margin.left - 10}" y="${y + 4}" text-anchor="end">${formatValue(tick, decimals)}</text>
       `;
-    }).join('');
+      })
+      .join("");
 
-    const seriesPaths = data.series.map((series, index) => {
-      const path = series.points.reduce((acc, point, pointIndex) => {
-        if (point.value === null) {
-          return acc;
-        }
+    const seriesPaths = data.series
+      .map((series, index) => {
+        const path = series.points
+          .reduce((acc, point, pointIndex) => {
+            if (point.value === null) {
+              return acc;
+            }
 
-        const x = xForIndex(pointIndex);
-        const y = yForValue(point.value);
-        const command = pointIndex === 0 || (series.points[pointIndex - 1]?.value === null) ? 'M' : 'L';
-        return `${acc}${command}${x.toFixed(2)} ${y.toFixed(2)} `;
-      }, '').trim();
+            const x = xForIndex(pointIndex);
+            const y = yForValue(point.value);
+            const command =
+              pointIndex === 0 || series.points[pointIndex - 1]?.value === null
+                ? "M"
+                : "L";
+            return `${acc}${command}${x.toFixed(2)} ${y.toFixed(2)} `;
+          }, "")
+          .trim();
 
-      const dots = series.points
-        .filter((point) => point.value !== null)
-        .map((point) => {
-          const x = xForIndex(series.points.indexOf(point));
-          const y = yForValue(point.value);
-          return `<circle class="point" cx="${x}" cy="${y}" r="2.4" fill="${series.color}" />`;
-        })
-        .join('');
+        const dots = series.points
+          .filter((point) => point.value !== null)
+          .map((point) => {
+            const x = xForIndex(series.points.indexOf(point));
+            const y = yForValue(point.value);
+            return `<circle class="point" cx="${x}" cy="${y}" r="2.4" fill="${series.color}" />`;
+          })
+          .join("");
 
-      return `
+        return `
         <path class="series-line" d="${path}" stroke="${series.color}" />
         ${dots}
       `;
-    }).join('');
+      })
+      .join("");
 
-    const legend = data.series.map((series) => `
+    const legend = data.series
+      .map(
+        (series) => `
       <span class="legend-item">
         <span class="legend-swatch" style="background: ${series.color};"></span>
         <span>${series.label}</span>
       </span>
-    `).join('');
+    `,
+      )
+      .join("");
 
     this.shadowRoot.innerHTML = `
       <style>${styles}</style>
@@ -258,16 +319,16 @@ class CostChartCard extends HTMLElement {
   }
 }
 
-if (!customElements.get('cost-chart-card')) {
-  customElements.define('cost-chart-card', CostChartCard);
+if (!customElements.get("cost-chart-card")) {
+  customElements.define("cost-chart-card", CostChartCard);
 }
 
 window.customCards = window.customCards || [];
-if (!window.customCards.some((card) => card.type === 'cost-chart-card')) {
+if (!window.customCards.some((card) => card.type === "cost-chart-card")) {
   window.customCards.push({
-    type: 'cost-chart-card',
-    name: 'Cost Chart Card',
-    description: '2D line chart for electricity cost sensors',
+    type: "cost-chart-card",
+    name: "Cost Chart Card",
+    description: "2D line chart for electricity cost sensors",
   });
 }
 
