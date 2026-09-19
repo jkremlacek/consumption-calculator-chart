@@ -355,9 +355,14 @@ class CostChartCard extends HTMLElement {
       })
       .join("");
 
-    const legendSeries = data.series.filter((series) =>
-      series.points.some((point) => Number.isFinite(point.value)),
-    );
+    const legendSeries = this._config.entities.map((entityId, index) => {
+      const series = data.series.find((entry) => entry.entityId === entityId);
+      return {
+        label: entityId.split(".").pop().replace(/_/g, " "),
+        color: this._config.colors[index % this._config.colors.length],
+        hasData: series?.points?.some((point) => Number.isFinite(point.value)),
+      };
+    });
 
     const legend = legendSeries
       .map(
