@@ -7,7 +7,7 @@ import {
   toNumber,
 } from "./helpers.js";
 
-const CARD_VERSION = "1.0.3";
+const CARD_VERSION = "1.0.4";
 
 const DEFAULT_CONFIG = {
   title: "Electricity Cost",
@@ -70,6 +70,20 @@ class CostChartCard extends HTMLElement {
     this.refreshData();
   }
 
+  buildLiveSeries() {
+    return this._config.entities
+      .map((entityId, index) => {
+        const value = toNumber(this._hass.states[entityId]?.state);
+        return {
+          entityId,
+          label: entityId.split(".").pop().replace(/_/g, " "),
+          color: this._config.colors[index % this._config.colors.length],
+          points: value !== null ? [{ time: Date.now(), value }] : [],
+        };
+      })
+      .filter((series) => series.points.length);
+  }
+
   async refreshData() {
     const { entities, hours } = this._config;
     const startTime = new Date(
@@ -105,7 +119,10 @@ class CostChartCard extends HTMLElement {
         }),
       );
 
-      this._chartData = this.buildChartData(series);
+      const hasHistory = series.some((entry) => entry.points.length > 0);
+      this._chartData = this.buildChartData(
+        hasHistory ? series : this.buildLiveSeries(),
+      );
       this.render();
     } catch (error) {
       console.warn(
@@ -245,18 +262,7 @@ class CostChartCard extends HTMLElement {
   }
 
   renderLiveOnlyState() {
-    const { title } = this._config;
-    const currentSeries = this._config.entities
-      .map((entityId, index) => {
-        const value = toNumber(this._hass.states[entityId]?.state);
-        return {
-          entityId,
-          label: entityId.split(".").pop().replace(/_/g, " "),
-          color: this._config.colors[index % this._config.colors.length],
-          points: value !== null ? [{ time: Date.now(), value }] : [],
-        };
-      })
-      .filter((series) => series.points.length);
+    const currentSeries = this.buildLiveSeries();
 
     this._chartData = this.buildChartData(currentSeries);
     this.render();
