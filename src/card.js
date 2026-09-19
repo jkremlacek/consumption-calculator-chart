@@ -7,7 +7,7 @@ import {
   toNumber,
 } from "./helpers.js";
 
-const CARD_VERSION = "1.0.6";
+const CARD_VERSION = "1.0.8";
 
 const DEFAULT_CONFIG = {
   title: "Electricity Cost",
@@ -30,6 +30,7 @@ class CostChartCard extends HTMLElement {
     this._config = { ...DEFAULT_CONFIG };
     this._ready = false;
     this._historyBlocked = false;
+    this._historyDisabledEntities = new Set();
   }
 
   setConfig(config) {
@@ -96,11 +97,9 @@ class CostChartCard extends HTMLElement {
     try {
       const series = await Promise.all(
         entities.map(async (entityId, index) => {
-          const history = await this.fetchHistoryForEntity(
-            entityId,
-            startTime,
-            endTime,
-          );
+          const history = this._historyDisabledEntities.has(entityId)
+            ? []
+            : await this.fetchHistoryForEntity(entityId, startTime, endTime);
           const points = normalizeHistory(history, hours);
           const currentState = this._hass.states[entityId]?.state;
           const currentValue = toNumber(currentState);
@@ -137,7 +136,7 @@ class CostChartCard extends HTMLElement {
   }
 
   async fetchHistoryForEntity(entityId, startTime, endTime) {
-    if (this._historyBlocked) {
+    if (this._historyBlocked || this._historyDisabledEntities.has(entityId)) {
       return [];
     }
 
@@ -156,7 +155,11 @@ class CostChartCard extends HTMLElement {
           "history/period",
           params,
         );
-        return Array.isArray(response) ? response : [];
+        const result = Array.isArray(response) ? response : [];
+        if (!result.length) {
+          this._historyDisabledEntities.add(entityId);
+        }
+        return result;
       } catch (error) {
         console.warn(
           `callApi history request failed for ${entityId}; falling back to fetch`,
@@ -167,14 +170,16 @@ class CostChartCard extends HTMLElement {
 
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
-      query.append(key, String(value));
+      const encodedValue = key === "filter_entity_id" ? encodeURIComponent(String(value)) : String(value);
+      query.append(key, encodedValue);
     });
 
     const authToken =
       this._hass?.auth?.data?.access_token || this._hass?.auth?.access_token;
+    const historyUrl = `/api/history/period?${query.toString()}`;
 
     try {
-      const response = await fetch(`/api/history/period?${query.toString()}`, {
+      const response = await fetch(historyUrl, {
         headers: {
           ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
         },
@@ -191,7 +196,11 @@ class CostChartCard extends HTMLElement {
       }
 
       const data = await response.json();
-      return Array.isArray(data) ? data : [];
+      const result = Array.isArray(data) ? data : [];
+      if (!result.length) {
+        this._historyDisabledEntities.add(entityId);
+      }
+      return result;
     } catch (error) {
       console.warn(
         `History fetch unavailable for ${entityId}; continuing without fallback blocking.`,
