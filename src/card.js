@@ -7,7 +7,7 @@ import {
   toNumber,
 } from "./helpers.js";
 
-const CARD_VERSION = "1.0.5";
+const CARD_VERSION = "1.0.6";
 
 const DEFAULT_CONFIG = {
   title: "Electricity Cost",
@@ -85,6 +85,8 @@ class CostChartCard extends HTMLElement {
   }
 
   async refreshData() {
+    this._historyBlocked = false;
+
     const { entities, hours } = this._config;
     const startTime = new Date(
       Date.now() - hours * 60 * 60 * 1000,
@@ -178,9 +180,8 @@ class CostChartCard extends HTMLElement {
         },
       });
       if (response.status === 401 || response.status === 403) {
-        this._historyBlocked = true;
         console.warn(
-          `History access denied for ${entityId}; using live state only.`,
+          `History access denied for ${entityId}; continuing with direct HA history requests only.`,
         );
         return [];
       }
@@ -192,9 +193,8 @@ class CostChartCard extends HTMLElement {
       const data = await response.json();
       return Array.isArray(data) ? data : [];
     } catch (error) {
-      this._historyBlocked = true;
       console.warn(
-        `History fetch unavailable for ${entityId}; using live state only.`,
+        `History fetch unavailable for ${entityId}; continuing without fallback blocking.`,
         error,
       );
       return [];
@@ -359,10 +359,7 @@ class CostChartCard extends HTMLElement {
         const dots = series.points
           .filter((point) => point.value !== null)
           .map((point) => {
-            const x = xForIndex(
-              seriesIndex,
-              series.points.indexOf(point),
-            );
+            const x = xForIndex(seriesIndex, series.points.indexOf(point));
             const y = yForValue(point.value);
             return `<circle class="point" cx="${x}" cy="${y}" r="2.4" fill="${series.color}" />`;
           })
