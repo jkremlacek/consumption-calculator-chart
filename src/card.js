@@ -7,7 +7,7 @@ import {
   toNumber,
 } from "./helpers.js";
 
-const CARD_VERSION = "1.0.4";
+const CARD_VERSION = "1.0.5";
 
 const DEFAULT_CONFIG = {
   title: "Electricity Cost",
@@ -291,7 +291,18 @@ class CostChartCard extends HTMLElement {
     const plotWidth = width - margin.left - margin.right;
     const plotHeight = height - margin.top - margin.bottom;
 
-    const xForIndex = (index) => {
+    const liveOnlySeries = data.times.length === 1 && data.series.length > 1;
+
+    const xForIndex = (seriesIndex, index) => {
+      if (liveOnlySeries) {
+        const spread = Math.min(plotWidth * 0.28, 90);
+        const offset =
+          ((seriesIndex - (data.series.length - 1) / 2) /
+            Math.max(1, data.series.length - 1)) *
+          spread;
+        return margin.left + plotWidth * 0.82 + offset;
+      }
+
       const count = Math.max(1, data.times.length - 1);
       return margin.left + (index / count) * plotWidth;
     };
@@ -328,14 +339,14 @@ class CostChartCard extends HTMLElement {
       .join("");
 
     const seriesPaths = data.series
-      .map((series, index) => {
+      .map((series, seriesIndex) => {
         const path = series.points
           .reduce((acc, point, pointIndex) => {
             if (point.value === null) {
               return acc;
             }
 
-            const x = xForIndex(pointIndex);
+            const x = xForIndex(seriesIndex, pointIndex);
             const y = yForValue(point.value);
             const command =
               pointIndex === 0 || series.points[pointIndex - 1]?.value === null
@@ -348,7 +359,10 @@ class CostChartCard extends HTMLElement {
         const dots = series.points
           .filter((point) => point.value !== null)
           .map((point) => {
-            const x = xForIndex(series.points.indexOf(point));
+            const x = xForIndex(
+              seriesIndex,
+              series.points.indexOf(point),
+            );
             const y = yForValue(point.value);
             return `<circle class="point" cx="${x}" cy="${y}" r="2.4" fill="${series.color}" />`;
           })
