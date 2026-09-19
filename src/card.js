@@ -7,7 +7,7 @@ import {
   toNumber,
 } from "./helpers.js";
 
-const CARD_VERSION = "1.0.8";
+const CARD_VERSION = "1.0.9";
 
 const DEFAULT_CONFIG = {
   title: "Electricity Cost",
@@ -30,7 +30,6 @@ class CostChartCard extends HTMLElement {
     this._config = { ...DEFAULT_CONFIG };
     this._ready = false;
     this._historyBlocked = false;
-    this._historyDisabledEntities = new Set();
   }
 
   setConfig(config) {
@@ -97,16 +96,19 @@ class CostChartCard extends HTMLElement {
     try {
       const series = await Promise.all(
         entities.map(async (entityId, index) => {
-          const history = this._historyDisabledEntities.has(entityId)
-            ? []
-            : await this.fetchHistoryForEntity(entityId, startTime, endTime);
+          const history = await this.fetchHistoryForEntity(
+            entityId,
+            startTime,
+            endTime,
+          );
           const points = normalizeHistory(history, hours);
           const currentState = this._hass.states[entityId]?.state;
           const currentValue = toNumber(currentState);
 
           if (
+            points.length > 0 &&
             currentValue !== null &&
-            (!points.length || points[points.length - 1].time < Date.now())
+            points[points.length - 1].time < Date.now()
           ) {
             points.push({ time: Date.now(), value: currentValue });
           }
@@ -121,9 +123,12 @@ class CostChartCard extends HTMLElement {
       );
 
       const hasHistory = series.some((entry) => entry.points.length > 0);
-      this._chartData = this.buildChartData(
-        hasHistory ? series : this.buildLiveSeries(),
-      );
+      if (!hasHistory) {
+        this.renderPlaceholder("No recorded history available for the selected period.");
+        return;
+      }
+
+      this._chartData = this.buildChartData(series);
       this.render();
     } catch (error) {
       console.warn(
@@ -136,7 +141,7 @@ class CostChartCard extends HTMLElement {
   }
 
   async fetchHistoryForEntity(entityId, startTime, endTime) {
-    if (this._historyBlocked || this._historyDisabledEntities.has(entityId)) {
+    if (this._historyBlocked) {
       return [];
     }
 
@@ -155,11 +160,7 @@ class CostChartCard extends HTMLElement {
           "history/period",
           params,
         );
-        const result = Array.isArray(response) ? response : [];
-        if (!result.length) {
-          this._historyDisabledEntities.add(entityId);
-        }
-        return result;
+        return Array.isArray(response) ? response : [];
       } catch (error) {
         console.warn(
           `callApi history request failed for ${entityId}; falling back to fetch`,
@@ -170,7 +171,10 @@ class CostChartCard extends HTMLElement {
 
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
-      const encodedValue = key === "filter_entity_id" ? encodeURIComponent(String(value)) : String(value);
+      const encodedValue =
+        key === "filter_entity_id"
+          ? encodeURIComponent(String(value))
+          : String(value);
       query.append(key, encodedValue);
     });
 
@@ -196,11 +200,7 @@ class CostChartCard extends HTMLElement {
       }
 
       const data = await response.json();
-      const result = Array.isArray(data) ? data : [];
-      if (!result.length) {
-        this._historyDisabledEntities.add(entityId);
-      }
-      return result;
+      return Array.isArray(data) ? data : [];
     } catch (error) {
       console.warn(
         `History fetch unavailable for ${entityId}; continuing without fallback blocking.`,
