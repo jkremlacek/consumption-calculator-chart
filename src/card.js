@@ -27,6 +27,7 @@ class CostChartCard extends HTMLElement {
     this._chartData = [];
     this._config = { ...DEFAULT_CONFIG };
     this._ready = false;
+    this._historyBlocked = false;
   }
 
   setConfig(config) {
@@ -117,6 +118,10 @@ class CostChartCard extends HTMLElement {
   }
 
   async fetchHistoryForEntity(entityId, startTime, endTime) {
+    if (this._historyBlocked) {
+      return [];
+    }
+
     const params = {
       start_time: startTime,
       end_time: endTime,
@@ -146,18 +151,25 @@ class CostChartCard extends HTMLElement {
       query.append(key, String(value));
     });
 
-    const response = await fetch(`/api/history/period?${query.toString()}`);
-    if (response.status === 401 || response.status === 403) {
-      console.warn(`History access denied for ${entityId}; using live state only.`);
+    try {
+      const response = await fetch(`/api/history/period?${query.toString()}`);
+      if (response.status === 401 || response.status === 403) {
+        this._historyBlocked = true;
+        console.warn(`History access denied for ${entityId}; using live state only.`);
+        return [];
+      }
+
+      if (!response.ok) {
+        throw new Error(`History API returned ${response.status}`);
+      }
+
+      const data = await response.json();
+      return Array.isArray(data) ? data : [];
+    } catch (error) {
+      this._historyBlocked = true;
+      console.warn(`History fetch unavailable for ${entityId}; using live state only.`, error);
       return [];
     }
-
-    if (!response.ok) {
-      throw new Error(`History API returned ${response.status}`);
-    }
-
-    const data = await response.json();
-    return Array.isArray(data) ? data : [];
   }
 
   buildChartData(series) {
