@@ -7,7 +7,7 @@ import {
   toNumber,
 } from "./helpers.js";
 
-const CARD_VERSION = "1.0.2";
+const CARD_VERSION = "1.0.3";
 
 const DEFAULT_CONFIG = {
   title: "Electricity Cost",

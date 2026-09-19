@@ -11,30 +11,54 @@ export function normalizeHistory(historyItems, hours, stepMs = 15 * 60 * 1000) {
   const cutoff = Date.now() - hours * 60 * 60 * 1000;
   const buckets = new Map();
 
-  (Array.isArray(historyItems) ? historyItems : []).forEach((entry) => {
-    const states = Array.isArray(entry?.states) ? entry.states : [];
+  const collectStates = (entries) => {
+    if (!Array.isArray(entries)) {
+      return;
+    }
 
-    states.forEach((state) => {
-      const timeStamp = new Date(
-        state.last_updated || state.last_changed || state.last_reported,
-      ).getTime();
-      if (!Number.isFinite(timeStamp) || timeStamp < cutoff) {
+    entries.forEach((entry) => {
+      if (Array.isArray(entry)) {
+        collectStates(entry);
         return;
       }
 
-      const key = Math.floor(timeStamp / stepMs) * stepMs;
-      const value = toNumber(state.state);
-
-      if (value === null) {
+      if (!entry || typeof entry !== "object") {
         return;
       }
 
-      const previous = buckets.get(key);
-      if (!previous || timeStamp > previous.time) {
-        buckets.set(key, { time: timeStamp, value });
-      }
+      const states = Array.isArray(entry.states) ? entry.states : [entry];
+
+      states.forEach((state) => {
+        if (!state || typeof state !== "object") {
+          return;
+        }
+
+        const timeStamp = new Date(
+          state.last_updated ||
+            state.last_changed ||
+            state.last_reported ||
+            state.time,
+        ).getTime();
+
+        if (!Number.isFinite(timeStamp) || timeStamp < cutoff) {
+          return;
+        }
+
+        const value = toNumber(state.state ?? state.value);
+        if (value === null) {
+          return;
+        }
+
+        const key = Math.floor(timeStamp / stepMs) * stepMs;
+        const previous = buckets.get(key);
+        if (!previous || timeStamp > previous.time) {
+          buckets.set(key, { time: timeStamp, value });
+        }
+      });
     });
-  });
+  };
+
+  collectStates(historyItems);
 
   return Array.from(buckets.entries())
     .sort(([left], [right]) => left - right)
