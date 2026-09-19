@@ -15,36 +15,32 @@ export const styles = `
   .card {
     background: var(--card-bg);
     border: 1px solid var(--card-border);
-    border-radius: 16px;
+    border-radius: 12px;
     box-shadow: 0 10px 26px var(--shadow);
-    padding: 12px 12px 8px;
+    padding: 10px 10px 6px;
     box-sizing: border-box;
     overflow: hidden;
   }
 
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin: 2px 2px 8px;
-    gap: 8px;
-  }
-
   .title {
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin: 0;
+    margin: 0 0 6px;
     letter-spacing: 0.01em;
+    line-height: 1.2;
   }
 
   .legend {
     display: flex;
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: center;
+    align-items: center;
     gap: 8px 12px;
     color: var(--text-secondary);
-    font-size: 0.75rem;
+    font-size: 0.72rem;
+    margin-top: 2px;
+    padding-bottom: 2px;
   }
 
   .legend-item {
@@ -62,7 +58,8 @@ export const styles = `
 
   .chart-shell {
     width: 100%;
-    min-height: 260px;
+    min-height: 180px;
+    height: 220px;
     position: relative;
   }
 
@@ -70,7 +67,7 @@ export const styles = `
     display: block;
     width: 100%;
     height: 100%;
-    min-height: 260px;
+    min-height: 180px;
     overflow: visible;
     background: transparent;
   }

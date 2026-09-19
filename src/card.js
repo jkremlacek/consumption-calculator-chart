@@ -108,7 +108,10 @@ class CostChartCard extends HTMLElement {
       this._chartData = this.buildChartData(series);
       this.render();
     } catch (error) {
-      console.warn("CostChartCard history unavailable; using live state only.", error);
+      console.warn(
+        "CostChartCard history unavailable; using live state only.",
+        error,
+      );
       this._historyBlocked = true;
       this.renderLiveOnlyState();
     }
@@ -152,7 +155,9 @@ class CostChartCard extends HTMLElement {
       const response = await fetch(`/api/history/period?${query.toString()}`);
       if (response.status === 401 || response.status === 403) {
         this._historyBlocked = true;
-        console.warn(`History access denied for ${entityId}; using live state only.`);
+        console.warn(
+          `History access denied for ${entityId}; using live state only.`,
+        );
         return [];
       }
 
@@ -164,7 +169,10 @@ class CostChartCard extends HTMLElement {
       return Array.isArray(data) ? data : [];
     } catch (error) {
       this._historyBlocked = true;
-      console.warn(`History fetch unavailable for ${entityId}; using live state only.`, error);
+      console.warn(
+        `History fetch unavailable for ${entityId}; using live state only.`,
+        error,
+      );
       return [];
     }
   }
@@ -247,7 +255,9 @@ class CostChartCard extends HTMLElement {
     this.render();
 
     if (!currentSeries.length) {
-      this.renderPlaceholder(`History access blocked — live data unavailable. v${CARD_VERSION}`);
+      this.renderPlaceholder(
+        `History access blocked — live data unavailable. v${CARD_VERSION}`,
+      );
     }
   }
 
@@ -263,8 +273,8 @@ class CostChartCard extends HTMLElement {
     }
 
     const width = 740;
-    const height = 280;
-    const margin = { top: 20, right: 14, bottom: 40, left: 52 };
+    const height = 220;
+    const margin = { top: 10, right: 14, bottom: 28, left: 46 };
     const plotWidth = width - margin.left - margin.right;
     const plotHeight = height - margin.top - margin.bottom;
 
@@ -352,10 +362,7 @@ class CostChartCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>${styles}</style>
       <div class="card">
-        <div class="header">
-          <h3 class="title">${title}</h3>
-          <div class="legend">${legend}</div>
-        </div>
+        <h3 class="title">${title}</h3>
         <div class="chart-shell">
           <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Electricity cost over time">
             <line class="axis-line" x1="${margin.left}" y1="${margin.top + plotHeight}" x2="${width - margin.right}" y2="${margin.top + plotHeight}" />
@@ -365,6 +372,7 @@ class CostChartCard extends HTMLElement {
             ${seriesPaths}
           </svg>
         </div>
+        <div class="legend">${legend}</div>
       </div>
     `;
   }
