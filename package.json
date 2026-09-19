@@ -1,0 +1,14 @@
+{
+  "name": "consumption-cost-chart",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build && node -e \"const fs=require('fs'); fs.copyFileSync('dist/cost-chart-card.js', 'cost-chart-card.js');\"",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}
